@@ -1,0 +1,39 @@
+WITH COMPLETE_PICKS (QTY_PICKED, REF_#) AS (
+    SELECT
+        SUM(P.qty),
+        O.orderId
+    FROM
+        [NuminaData_BaseTables].[dbo].[HK_Numina_psPicks_raw] "P"
+        JOIN [NuminaData_BaseTables].[dbo].[HK_Numina_psOrderLines_raw] "L" on P.OrderLineSeq = L.OrderLineSeq
+        JOIN [NuminaData_BaseTables].[dbo].[HK_Numina_psOrders_raw] "O" on P.orderId = O.orderId
+    WHERE
+        P.status IN ('complete', 'qc')
+        AND P.pickable = 'true'
+        AND O.billingName <> 'AMAZON TEST ACCOUNT'
+    GROUP BY
+        O.orderId
+),
+TOTAL_PICKABLE (QTY_PICKABLE, REF_#) AS (
+    SELECT
+        SUM(P.qty),
+        O.orderId
+    FROM
+        [NuminaData_BaseTables].[dbo].[HK_Numina_psPicks_raw] "P"
+        JOIN [NuminaData_BaseTables].[dbo].[HK_Numina_psOrderLines_raw] "L" on P.OrderLineSeq = L.OrderLineSeq
+        JOIN [NuminaData_BaseTables].[dbo].[HK_Numina_psOrders_raw] "O" on P.orderId = O.orderId
+    WHERE
+        P.pickable = 'true'
+        AND O.billingName <> 'AMAZON TEST ACCOUNT'
+    GROUP BY
+        O.orderId
+)
+SELECT
+    COMPLETE_PICKS.REF_# 'REF #',
+    (
+        CONVERT (DECIMAL(7, 2),(QTY_PICKED)) / CONVERT (DECIMAL(7, 2),(QTY_PICKABLE))
+    ) * 100 'FILL RATE'
+FROM
+    COMPLETE_PICKS,
+    TOTAL_PICKABLE
+WHERE
+    COMPLETE_PICKS.REF_# = TOTAL_PICKABLE.REF_#
